@@ -57,15 +57,24 @@ def read_sensor(sensor, q):
         q.put(data)
 
 def main (args):
-    resolution = (int(args.resolution.split('x')[0]), int(args.resolution.split('x')[1]))
-    camera_name = args.camera
+    if 'x' in args.resolution:
+        resolution = tuple(map(int, args.resolution.split('x')))
+    else:
+        logging.error('Wrong freq')
+        sys.exit()
+        
     frequency = args.frequency
-    
     window = WindowImage(frequency)
-    camera = SensorCam(camera_name, resolution)
+    
+    try:
+        camera = SensorCam(args.camera, resolution)
+    except Exception as e:
+        logging.error('Camera Name Error')
+        sys.exit()
+
     
     if not camera.cap.isOpened():
-        logging.info('Camera Error')
+        logging.error('Camera Error')
         camera.release()
         window.close()
         sys.exit()
@@ -97,7 +106,7 @@ def main (args):
 
         ret, frame = camera.get()
         if not camera.cap.isOpened() or not camera.cap.grab():
-            logging.info('Camera Error')
+            logging.error('Camera Error')
             camera.release()
             window.close()
             stop_flag.set()
