@@ -1,3 +1,0 @@
-/mnt/d/paral/pararel/lab2/1/CMakeFiles/main.dir
-/mnt/d/paral/pararel/lab2/1/CMakeFiles/edit_cache.dir
-/mnt/d/paral/pararel/lab2/1/CMakeFiles/rebuild_cache.dir

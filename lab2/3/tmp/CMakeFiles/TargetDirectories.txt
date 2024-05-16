@@ -1,0 +1,3 @@
+/home/n.glazkov/lab1/3/tmp/CMakeFiles/main.dir
+/home/n.glazkov/lab1/3/tmp/CMakeFiles/edit_cache.dir
+/home/n.glazkov/lab1/3/tmp/CMakeFiles/rebuild_cache.dir

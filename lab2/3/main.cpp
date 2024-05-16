@@ -3,146 +3,204 @@
 #include <vector>
 #include <cmath>
 
-// Функция вывода элементов матрицы
-void Output(double ** mas, int rows, int cols) {
-	for(int i = 0; i < rows; i++) {
-		for(int j = 0; j < cols; j++) std::cout << mas[i][j] << " ";
-        std::cout <<std::endl;
-	}
-    
-}
-// Транспонирование матрицы
-double ** Transpone1(double ** mas, int rows, int cols) {
-	double ** rez;
-	rez = (double ** ) malloc(cols * sizeof(double * ));
-	for(int i = 0; i < cols; i++) {
-		rez[i] = (double * ) malloc(rows * sizeof(double));
-		for(int j = 0; j < rows; j++) rez[i][j] = mas[j][i];
-	}
-	return rez;
-}
-
-// Получение матрицы без i-й строки и j-го столбца
-// (функция нужна для вычисления определителя и миноров)
-double ** GetMatr(double ** mas, int rows, int cols, int row, int col) {
-	int di, dj;
-	double ** p = (double ** ) malloc((rows - 1) * sizeof(double * ));
-	di = 0;
-	for(int i = 0; i < rows - 1; i++) { // проверка индекса строки
-		if(i == row) // строка совпала с вычеркиваемой
-			di = 1; // - дальше индексы на 1 больше
-		dj = 0;
-		p[i] = (double * ) malloc((cols - 1) * sizeof(double));
-		for(int j = 0; j < cols - 1; j++) { // проверка индекса столбца
-			if(j == col) // столбец совпал с вычеркиваемым
-				dj = 1; // - дальше индексы на 1 больше
-			p[i][j] = mas[i + di][j + dj];
-		}
-	}
-	return p;
-}
-// Рекурсивное вычисление определителя
-double Determinant(double ** mas, int m) {
-	int k;
-	double ** p = 0;
-	double d = 0;
-	k = 1; //(-1) в степени i
-	if(m == 1) {
-		d = mas[0][0];
-		return (d);
-	}
-	if(m == 2) {
-		d = mas[0][0] * mas[1][1] - (mas[1][0] * mas[0][1]);
-		return (d);
-	}
-	if(m > 2) {
-		for(int i = 0; i < m; i++) {
-			p = GetMatr(mas, m, m, i, 0);
-			d = d + k * mas[i][0] * Determinant(p, m - 1);
-			k = -k;
-		}
-	}
-	return (d);
-}
-// Обратная матрица
-double ** Mreverse1(double ** mas, int m) {
-	double ** rez = (double ** ) malloc(m * sizeof(double * ));
-	double det = Determinant(mas, m); // находим определитель исходной матрицы
-	#pragma omp parallel for
-	for(int i = 0; i < m; i++) {
-		rez[i] = (double * ) malloc(m * sizeof(double));
-		for(int j = 0; j < m; j++) {
-			rez[i][j] = Determinant(GetMatr(mas, m, m, i, j), m - 1);
-			if((i + j) % 2 == 1) // если сумма индексов строки и столбца нечетная
-				rez[i][j] = -rez[i][j]; // меняем знак минора
-			rez[i][j] = rez[i][j] / det;
-		}
-	}
-
-	#pragma omp parallel for
-	for(int i = 0; i < m; i++) {
-		for(int j = 0; j < m; j++) rez[i][j] = rez[j][i];
-	}
-
-	return rez;
-}
-
-double ** Mreverse2(double ** mas, int m) {
-	double ** rez = (double ** ) malloc(m * sizeof(double * ));
-	#pragma omp parallel 
-	{
-	double det = Determinant(mas, m); // находим определитель исходной матрицы
-	for(int i = 0; i < m; i++) {
-		rez[i] = (double * ) malloc(m * sizeof(double));
-		for(int j = 0; j < m; j++) {
-			rez[i][j] = Determinant(GetMatr(mas, m, m, i, j), m - 1);
-			if((i + j) % 2 == 1) // если сумма индексов строки и столбца нечетная
-				rez[i][j] = -rez[i][j]; // меняем знак минора
-			rez[i][j] = rez[i][j] / det;
-		}
-	}
-		for(int i = 0; i < m; i++) {
-			for(int j = 0; j < m; j++) rez[i][j] = rez[j][i];
-	}
-	}
-	return rez;
-
-}
-
-
-int main() {
-
-	int n = 4;
-    double** mas = (double**)malloc(n * sizeof(double*));	
-    
-    double * b = (double*)malloc(n * sizeof(double));
-    double * sol= (double*)malloc(n * sizeof(double));
-    for(int i = 0; i< n; i++ ) {
-        mas[i] = (double*)malloc(n * sizeof(double));
+void initialize_matrix(std::vector<std::vector<double>> &A, std::vector<double> &b, int n) {
+    // Заполнение матрицы A и вектора b
+    for (int i = 0; i < n; i++) {
         b[i] = i + 1;
-        sol[i] = 0;
-        for(int j = 0; j< n; j++ ) {
-            if(i==j) mas[i][j] = 2;
-            else mas[i][j] = 1;
+        for (int j = 0; j < n; j++) {
+            if (i == j)
+                A[i][j] = 2.0;
+            else
+                A[i][j] = 1.0;
         }
     }
+}
 
-	// Находим обратную матрицу
-	double t = omp_get_wtime();  
-	double ** mas_reverse = Mreverse1(mas, n);
-	t = omp_get_wtime() - t;
-	std::cout << "T1 = " << t << std::endl;
+std::vector<double> jacobi_method_parallel1(const std::vector<std::vector<double>> &A, const std::vector<double> &b, int n, int max_iter, double tol) {
+    std::vector<double> x(n, 0.0), x_old(n, 0.0);
+    for (int iter = 0; iter < max_iter; iter++) {
+        #pragma omp parallel for
+        for (int i = 0; i < n; i++) {
+            double sigma = 0.0;
+            for (int j = 0; j < n; j++) {
+                if (j != i)
+                    sigma += A[i][j] * x_old[j];
+            }
+            x[i] = (b[i] - sigma) / A[i][i];
+        }
+        double error = 0.0;
+        #pragma omp parallel for reduction(+:error)
+        for (int i = 0; i < n; i++) {
+            error += abs(x[i] - x_old[i]);
+        }
+        if (error < tol)
+            break;
+        x_old = x;
+    }
+    return x;
+}
 
-	t = omp_get_wtime();  
-	mas_reverse = Mreverse2(mas, n);
-	t = omp_get_wtime() - t;
-	std::cout << "T2 = " << t << std::endl;
+std::vector<double> jacobi_method_parallel2(const std::vector<std::vector<double>> &A, const std::vector<double> &b, int n, int max_iter, double tol) {
+    std::vector<double> x(n, 0.0), x_old(n, 0.0);
+    #pragma omp parallel
+    {
+        for (int iter = 0; iter < max_iter; iter++) {
+            #pragma omp for
+            for (int i = 0; i < n; i++) {
+                double sigma = 0.0;
+                for (int j = 0; j < n; j++) {
+                    if (j != i)
+                        sigma += A[i][j] * x_old[j];
+                }
+                x[i] = (b[i] - sigma) / A[i][i];
+            }
+            double error = 0.0;
+            #pragma omp for reduction(+:error)
+            for (int i = 0; i < n; i++) {
+                error += abs(x[i] - x_old[i]);
+            }
+            if (error < tol)
+                break;
+            #pragma omp single
+            x_old = x;
+        }
+    }
+    return x;
+}
 
-	for(int i = 0; i < n; i++) {
-		for(int j = 0; j < n; j++) {
-			sol[i] += mas_reverse[i][j] * b[i];
-		}
-	}
+std::vector<double> jacobi_method_schedule(const std::vector<std::vector<double>> &A, const std::vector<double> &b, int n, int max_iter, double tol, const std::string& schedule_type) {
+    std::vector<double> x(n, 0.0), x_old(n, 0.0);
+    omp_sched_t schedule;
+    if (schedule_type == "static")
+        schedule = omp_sched_static;
+    else if (schedule_type == "dynamic")
+        schedule = omp_sched_dynamic;
+    else
+        schedule = omp_sched_guided;
 
-	return 0;
+    #pragma omp parallel
+    {
+        omp_set_schedule(schedule, 1);
+        for (int iter = 0; iter < max_iter; iter++) {
+            #pragma omp for schedule(runtime)
+            for (int i = 0; i < n; i++) {
+                double sigma = 0.0;
+                for (int j = 0; j < n; j++) {
+                    if (j != i)
+                        sigma += A[i][j] * x_old[j];
+                }
+                x[i] = (b[i] - sigma) / A[i][i];
+            }
+            double error = 0.0;
+            #pragma omp for reduction(+:error)
+            for (int i = 0; i < n; i++) {
+                error += abs(x[i] - x_old[i]);
+            }
+            if (error < tol)
+                break;
+            #pragma omp single
+            x_old = x;
+        }
+    }
+    return x;
+}
+
+int main() {
+    int n = 40000; // Размер системы
+    int max_iter = 1000;
+    double tol = 1e-6;
+    int threads[8] = {1, 2, 4, 7, 8, 16, 20, 40};
+    double start;
+    double end;
+    std::vector<double> x;
+    std::vector<std::vector<double>> A(n, std::vector<double>(n, 0.0));
+    std::vector<double> b(n, 0.0);
+    
+    initialize_matrix(A, b, n);
+    std::cout << "Вариант 1" <<std::endl;
+    omp_set_num_threads(1);
+    start = omp_get_wtime();
+    x = jacobi_method_parallel1(A, b, n, max_iter, tol);
+    end = omp_get_wtime();
+    std::cout << "T" << 1 <<" = " << end - start << std::endl;
+    double T1 = end - start;
+
+    //первый вариант
+    for (int i = 1; i < 8; i++) {
+        omp_set_num_threads(threads[i]);
+        start = omp_get_wtime();
+        x = jacobi_method_parallel1(A, b, n, max_iter, tol);
+        end = omp_get_wtime();
+        std::cout << "T" << threads[i] <<" = " << end - start << ", S" << threads[i] << " = " << T1/(end - start) << std::endl;
+    }
+    std::cout << "Вариант 2" <<std::endl;
+    omp_set_num_threads(1);
+    start = omp_get_wtime();
+    x = jacobi_method_parallel2(A, b, n, max_iter, tol);
+    end = omp_get_wtime();
+    std::cout << "T" << 1 <<" = " << end - start << std::endl;
+    T1 = end - start;
+
+    //второй вариант
+    for (int i = 1; i < 8; i++) {
+        omp_set_num_threads(threads[i]);
+        start = omp_get_wtime();
+        x = jacobi_method_parallel2(A, b, n, max_iter, tol);
+        end = omp_get_wtime();
+        std::cout << "T" << threads[i] <<" = " << end - start << ", S" << threads[i] << " = " << T1/(end - start) << std::endl;
+    }
+
+    //тесты schedule
+    std::cout << "тесты schedule\n" <<std::endl;
+    std::cout << "static" <<std::endl;
+    //static
+    omp_set_num_threads(1);
+    start = omp_get_wtime();
+    x = jacobi_method_schedule(A, b, n, max_iter, tol, "static");
+    end = omp_get_wtime();
+    std::cout << "T" << 1 <<" = " << end - start << std::endl;
+    T1 = end - start;
+        for (int i = 1; i < 8; i++) {
+        omp_set_num_threads(threads[i]);
+        start = omp_get_wtime();
+        x = jacobi_method_schedule(A, b, n, max_iter, tol, "static");
+        end = omp_get_wtime();
+        std::cout << "T" << threads[i] <<" = " << end - start << ", S" << threads[i] << " = " << T1/(end - start) << std::endl;
+    }
+
+    std::cout << "dynamic" <<std::endl;
+    //dynamic
+    omp_set_num_threads(1);
+    start = omp_get_wtime();
+    x = jacobi_method_schedule(A, b, n, max_iter, tol, "dynamic");
+    end = omp_get_wtime();
+    std::cout << "T" << 1 <<" = " << end - start << std::endl;
+    T1 = end - start;
+        for (int i = 1; i < 8; i++) {
+        omp_set_num_threads(threads[i]);
+        start = omp_get_wtime();
+        x = jacobi_method_schedule(A, b, n, max_iter, tol, "dynamic");
+        end = omp_get_wtime();
+        std::cout << "T" << threads[i] <<" = " << end - start << ", S" << threads[i] << " = " << T1/(end - start) << std::endl;
+    }
+
+    std::cout << "guided" <<std::endl;
+    //guided
+    omp_set_num_threads(1);
+    start = omp_get_wtime();
+    x = jacobi_method_schedule(A, b, n, max_iter, tol, "guided");
+    end = omp_get_wtime();
+    std::cout << "T" << 1 <<" = " << end - start << std::endl;
+    T1 = end - start;
+        for (int i = 1; i < 8; i++) {
+        omp_set_num_threads(threads[i]);
+        start = omp_get_wtime();
+        x = jacobi_method_schedule(A, b, n, max_iter, tol, "guided");
+        end = omp_get_wtime();
+        std::cout << "T" << threads[i] <<" = " << end - start << ", S" << threads[i] << " = " << T1/(end - start) << std::endl;
+    }
+
+
+
+    return 0;
 }
