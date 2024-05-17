@@ -11,7 +11,7 @@ class ModelResource:
     def __init__(self):
         # Инициализация ресурса (загрузка модели)
         print("Loading model...")
-        self.model = YOLO('yolov8s-pose.pt')  # Замените на путь к файлу модели
+        self.model = YOLO('yolov8s-pose.pt')  
 
     def __del__(self):
         # Освобождение ресурса (выгрузка модели)
