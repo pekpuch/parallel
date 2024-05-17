@@ -110,7 +110,7 @@ parser = argparse.ArgumentParser(description="-i - имя видео, -m - ре�
 parser.add_argument("-i", help="путь")
 parser.add_argument("-m", choices=["single-threaded", "multi-threaded"], help="режим")
 parser.add_argument("-o", help="путь output")
-parser.add_argument("-t", type=int, default=None, help="Number of threads for multi-threaded mode (optional, autodetect by default).")
+parser.add_argument("-t", type=int, default=None, help="число потоков")
 args = parser.parse_args()
 
 # Выбор режима обработки видео
