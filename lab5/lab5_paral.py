@@ -105,7 +105,6 @@ def process_video_multi_threaded(video_path, output_video_path, num_threads):
     end_time = time.time()
     print(f"Multi-threaded processing time (with {num_threads} threads): {end_time - start_time:.2f} seconds")
 
-# Обработка аргументов командной строки
 parser = argparse.ArgumentParser(description="-i - имя видео, -m - режим, -o - имя output, -t - ")
 parser.add_argument("-i", help="путь")
 parser.add_argument("-m", choices=["single-threaded", "multi-threaded"], help="режим")
@@ -118,8 +117,7 @@ if args.m == "single-threaded":
     process_video_single_threaded(args.i, args.o)
 elif args.m == "multi-threaded":
     if args.t is None:
-        # Автоматическое определение оптимального числа потоков (например, можно использовать число ядер процессора)
-        num_threads = os.cpu_count()  # Замените на ваш метод автоопределения
+        num_threads = os.cpu_count() 
     else:
         num_threads = args.t
     process_video_multi_threaded(args.i, args.o, num_threads)
